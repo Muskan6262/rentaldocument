@@ -36,8 +36,14 @@ export default function PdfViewerModal({
             }
           });
           if (!res.ok) {
-            const errText = await res.text();
-            throw new Error(`Failed to load PDF (${res.status}): ${errText}`);
+            let detail = '';
+            try {
+              const errJson = await res.json();
+              detail = errJson.detail || '';
+            } catch {
+              detail = await res.text();
+            }
+            throw new Error(detail || `Server returned ${res.status} ${res.statusText}`);
           }
           const blob = await res.blob();
           currentObjectUrl = window.URL.createObjectURL(blob);

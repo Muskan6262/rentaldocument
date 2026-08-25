@@ -425,5 +425,9 @@ def download_document(
         content = storage_provider.download(active_version.file_path)
         return Response(content=content, media_type="application/pdf")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to download document: {str(e)}")
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Document file '{active_version.file_path}' was not found in storage. Please re-upload this agreement."
+        )
+
 
