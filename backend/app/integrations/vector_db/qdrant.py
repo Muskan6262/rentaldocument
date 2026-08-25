@@ -166,23 +166,28 @@ class QdrantProvider(VectorDBProvider):
             )
             
         # Execute Query API (Fusion)
-        results = self.client.query_points(
-            collection_name=self.collection_name,
-            prefetch=prefetch,
-            query=models.FusionQuery(fusion=models.Fusion.RRF),
-            query_filter=filter_obj,
-            limit=limit,
-            with_payload=True
-        )
-        
-        return [
-            {
-                "id": hit.id,
-                "score": hit.score,
-                "payload": hit.payload
-            }
-            for hit in results.points
-        ]
+        try:
+            results = self.client.query_points(
+                collection_name=self.collection_name,
+                prefetch=prefetch,
+                query=models.FusionQuery(fusion=models.Fusion.RRF),
+                query_filter=filter_obj,
+                limit=limit,
+                with_payload=True
+            )
+            
+            return [
+                {
+                    "id": hit.id,
+                    "score": hit.score,
+                    "payload": hit.payload
+                }
+                for hit in results.points
+            ]
+        except Exception as e:
+            print(f"Warning: Qdrant search failed ({e}). Returning empty result set.")
+            return []
+
 
 # Global instance for dependency injection
 vector_db_provider = QdrantProvider()

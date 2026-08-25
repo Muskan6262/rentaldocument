@@ -13,7 +13,10 @@ from app.core.config import settings
 from fastapi.security import OAuth2PasswordBearer
 
 router = APIRouter()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login")
+from fastapi import Request, Query
+from typing import Optional
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login", auto_error=False)
 
 class UserCreate(BaseModel):
     name: str
@@ -74,20 +77,28 @@ def login(user_in: UserLogin, db: Session = Depends(get_db)):
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-def get_current_tenant_id(token: str = Depends(oauth2_scheme)) -> str:
+def get_current_tenant_id(
+    request: Request,
+    token: Optional[str] = Depends(oauth2_scheme),
+    token_query: Optional[str] = Query(None, alias="token")
+) -> str:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    raw_token = token or token_query or request.cookies.get("auth_token")
+    if not raw_token:
+        raise credentials_exception
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        payload = jwt.decode(raw_token, settings.SECRET_KEY, algorithms=["HS256"])
         tenant_id: str = payload.get("tenant_id")
         if tenant_id is None:
             raise credentials_exception
     except jwt.PyJWTError:
         raise credentials_exception
     return tenant_id
+
 
 @router.get("/me")
 def get_current_user_info(
