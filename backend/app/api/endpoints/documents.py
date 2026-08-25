@@ -13,8 +13,7 @@ from app.models.document import Document, DocumentVersion
 from app.integrations.storage.minio import storage_provider
 from app.integrations.parsers import document_parser
 from app.core.chunking import chunker
-from app.integrations.embeddings.fastembed_dense import embedding_provider
-from app.integrations.embeddings.sparse import sparse_provider
+from app.integrations.embeddings import embedding_provider, sparse_provider
 from app.integrations.vector_db.qdrant import vector_db_provider
 from app.integrations.security.pii_masking import pii_masker
 from app.api.endpoints.auth import get_current_tenant_id

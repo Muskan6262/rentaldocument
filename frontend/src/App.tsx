@@ -196,7 +196,13 @@ function App() {
         body: JSON.stringify(payload)
       });
 
-      const data = await response.json();
+      let data: any = {};
+      try {
+        const text = await response.text();
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = { detail: response.statusText || `HTTP ${response.status}` };
+      }
 
       if (response.ok) {
         setAuthToken(data.access_token);
@@ -204,10 +210,11 @@ function App() {
         setCookie('auth_token', data.access_token);
         window.history.replaceState(null, '', '/');
       } else {
-        setAuthError(data.detail || 'Authentication failed');
+        const errorMsg = data.detail || (typeof data === 'string' ? data : 'Authentication failed');
+        setAuthError(errorMsg);
       }
-    } catch (err) {
-      setAuthError('Network error connecting to auth server.');
+    } catch (err: any) {
+      setAuthError(`Authentication error: ${err?.message || 'Unable to reach backend server'}`);
     }
   };
 
@@ -571,7 +578,7 @@ function App() {
           </div>
 
           {/* Saved Keywords Bar */}
-          <SavedKeywordsBar 
+          <SavedKeywordsBar
             onSelectKeyword={handleSelectKeyword}
             currentQuestion={inputMessage}
           />
@@ -698,10 +705,10 @@ function App() {
             <input
               type="text"
               placeholder={
-                !selectedDocId 
-                  ? "Select an agreement from Knowledge Base to start asking..." 
-                  : isDocumentIndexing 
-                    ? "Document is indexing in background..." 
+                !selectedDocId
+                  ? "Select an agreement from Knowledge Base to start asking..."
+                  : isDocumentIndexing
+                    ? "Document is indexing in background..."
                     : "Ask any question about clauses, notice period, security deposit, rent escalation..."
               }
               value={inputMessage}

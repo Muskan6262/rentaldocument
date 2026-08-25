@@ -6,8 +6,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.models.tenant import Tenant
 from app.models.chat import ChatSession, ChatMessage
-from app.integrations.embeddings.fastembed_dense import embedding_provider
-from app.integrations.embeddings.sparse import sparse_provider
+from app.integrations.embeddings import embedding_provider, sparse_provider
 from app.integrations.vector_db.qdrant import vector_db_provider
 from app.integrations.rerankers.cohere import reranker_provider
 from app.core.rag import rag_service
