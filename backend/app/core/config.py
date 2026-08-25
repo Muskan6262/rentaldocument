@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     
     # Object Storage
     OBJECT_STORAGE_PROVIDER: str = "minio"
-    S3_ENDPOINT_URL: str = "http://localhost:9000"
+    S3_ENDPOINT_URL: str = "http://minio:9000"
     S3_ACCESS_KEY: str = "admin"
     S3_SECRET_KEY: str = "password"
     S3_BUCKET: str = "rental-agreements"
