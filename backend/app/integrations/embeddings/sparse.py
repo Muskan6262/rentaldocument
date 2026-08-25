@@ -1,10 +1,19 @@
-from fastembed.sparse.sparse_text_embedding import SparseTextEmbedding
 from typing import List, Dict, Any
+import threading
 
 class SparseEmbeddingProvider:
     def __init__(self):
-        # We use Qdrant/bm25 which is the standard BM25 sparse model
-        self.model = SparseTextEmbedding(model_name="Qdrant/bm25")
+        self._model = None
+        self._lock = threading.Lock()
+
+    @property
+    def model(self):
+        if self._model is None:
+            with self._lock:
+                if self._model is None:
+                    from fastembed.sparse.sparse_text_embedding import SparseTextEmbedding
+                    self._model = SparseTextEmbedding(model_name="Qdrant/bm25", threads=1)
+        return self._model
 
     def embed_text(self, text: str) -> Dict[str, Any]:
         """
@@ -22,7 +31,7 @@ class SparseEmbeddingProvider:
         """
         Embeds a batch of strings into sparse vectors.
         """
-        sparse_gen = self.model.embed(texts)
+        sparse_gen = self.model.embed(texts, batch_size=4)
         results = []
         for sparse_embedding in sparse_gen:
             results.append({
@@ -32,3 +41,4 @@ class SparseEmbeddingProvider:
         return results
 
 sparse_provider = SparseEmbeddingProvider()
+

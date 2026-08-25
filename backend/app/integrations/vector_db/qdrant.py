@@ -60,16 +60,19 @@ class QdrantProvider(VectorDBProvider):
         """
         Marks all existing chunks for a document as inactive so they are excluded from search.
         """
-        self.client.set_payload(
-            collection_name=self.collection_name,
-            payload={"is_active": False},
-            points=models.Filter(
-                must=[
-                    models.FieldCondition(key="tenant_id", match=models.MatchValue(value=tenant_id)),
-                    models.FieldCondition(key="document_id", match=models.MatchValue(value=document_id))
-                ]
+        try:
+            self.client.set_payload(
+                collection_name=self.collection_name,
+                payload={"is_active": False},
+                points=models.Filter(
+                    must=[
+                        models.FieldCondition(key="tenant_id", match=models.MatchValue(value=tenant_id)),
+                        models.FieldCondition(key="document_id", match=models.MatchValue(value=document_id))
+                    ]
+                )
             )
-        )
+        except Exception as e:
+            print(f"Warning: Could not deactivate document versions in Qdrant: {e}")
 
     def upsert(self, tenant_id: str, document_id: str, version_id: str, chunks: List[Dict[str, Any]]) -> bool:
         points = []
@@ -103,11 +106,16 @@ class QdrantProvider(VectorDBProvider):
             )
             
         if points:
-            self.client.upsert(
-                collection_name=self.collection_name,
-                points=points
-            )
+            try:
+                self.client.upsert(
+                    collection_name=self.collection_name,
+                    points=points
+                )
+            except Exception as e:
+                print(f"Error during Qdrant upsert: {e}")
+                raise e
         return True
+
 
     def search(self, tenant_id: str, query_vector: List[float], limit: int = 10, filters: Dict[str, Any] = None, sparse_query_vector: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         if filters is None:
