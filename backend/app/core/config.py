@@ -33,11 +33,12 @@ class Settings(BaseSettings):
     COHERE_API_KEY: str = ""
     RERANKER_MODEL: str = ""
     
-    # Object Storage
-    OBJECT_STORAGE_PROVIDER: str = "minio"
-    S3_ENDPOINT_URL: str = "http://minio:9000"
-    S3_ACCESS_KEY: str = "admin"
-    S3_SECRET_KEY: str = "password"
+    # Object Storage (local or minio/s3)
+    OBJECT_STORAGE_PROVIDER: str = "local"
+    STORAGE_LOCAL_DIR: str = "./storage_data"
+    S3_ENDPOINT_URL: str = ""
+    S3_ACCESS_KEY: str = ""
+    S3_SECRET_KEY: str = ""
     S3_BUCKET: str = "rental-agreements"
     S3_REGION: str = "us-east-1"
     

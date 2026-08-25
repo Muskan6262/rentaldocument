@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db, SessionLocal
 from app.models.tenant import Tenant
 from app.models.document import Document, DocumentVersion
-from app.integrations.storage.minio import storage_provider
+from app.integrations.storage import storage_provider
 from app.integrations.parsers import document_parser
 from app.core.chunking import chunker
 from app.integrations.embeddings import embedding_provider, sparse_provider
