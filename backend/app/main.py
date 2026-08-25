@@ -16,10 +16,18 @@ app.add_middleware(
 
 @app.on_event("startup")
 def on_startup():
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("Database connection & tables initialized successfully.")
+    except Exception as e:
+        print(f"Warning: Database connection failed during startup: {e}")
 
 app.include_router(api_router, prefix="/api/v1")
 
 @app.get("/")
 def read_root():
     return {"status": "ok", "message": "Rental Intelligence API is running"}
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
