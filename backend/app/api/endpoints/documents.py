@@ -160,18 +160,15 @@ async def upload_documents(
             
         elements = document_parser.parse(tmp_path)
         extracted_chars = sum(len(el.text) for el in (elements or []))
-        expected_chars = total_pages * 1500
+        if not elements or extracted_chars < 20:
+            raise HTTPException(status_code=400, detail="Document appears empty or completely unreadable. No text could be extracted.")
         
-        read_percentage = 0
-        if expected_chars > 0:
-            read_percentage = min(100, int((extracted_chars / expected_chars) * 100))
-            
-        if read_percentage < 80:
-            raise HTTPException(status_code=400, detail=f"Document is too blurry or unreadable. Only extracted {read_percentage}% of expected text. Minimum 80% required.")
-            
+        expected_chars = max(total_pages * 300, 100)
+        read_percentage = min(100, int((extracted_chars / expected_chars) * 100))
+        
         warning_msg = None
-        if read_percentage < 100:
-            warning_msg = f"Only {read_percentage}% data was read successfully. {100 - read_percentage}% is pending because the text was very blurry."
+        if read_percentage < 60:
+            warning_msg = f"Low text density detected ({extracted_chars} characters across {total_pages} pages). Some blurry sections may need review."
         
         chunks = chunker.chunk(elements)
         if not chunks:
@@ -211,13 +208,15 @@ async def upload_documents(
         # Trigger background processing for embeddings
         background_tasks.add_task(process_document_background, tenant_id, document_id, version_id, chunks)
         
+    except HTTPException:
+        raise
     except Exception as e:
-        # In a real system, we would mark the DocumentVersion processing_status as FAILED.
-        # For Phase 1/2, we'll raise an HTTPException for visibility.
+        logger.exception("Ingestion pipeline failed")
         raise HTTPException(status_code=500, detail=f"Ingestion pipeline failed: {str(e)}")
     finally:
         # Cleanup temp file
-        os.remove(tmp_path)
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
     
     return {
         "status": "success",
@@ -307,19 +306,16 @@ async def upload_document_version(
             
         elements = document_parser.parse(tmp_path)
         extracted_chars = sum(len(el.text) for el in (elements or []))
-        expected_chars = total_pages * 1500
+        if not elements or extracted_chars < 20:
+            raise HTTPException(status_code=400, detail="Document appears empty or completely unreadable. No text could be extracted.")
         
-        read_percentage = 0
-        if expected_chars > 0:
-            read_percentage = min(100, int((extracted_chars / expected_chars) * 100))
-            
-        if read_percentage < 80:
-            raise HTTPException(status_code=400, detail=f"Document is too blurry or unreadable. Only extracted {read_percentage}% of expected text. Minimum 80% required.")
-            
+        expected_chars = max(total_pages * 300, 100)
+        read_percentage = min(100, int((extracted_chars / expected_chars) * 100))
+        
         warning_msg = None
-        if read_percentage < 100:
-            warning_msg = f"Only {read_percentage}% data was read successfully. {100 - read_percentage}% is pending because the text was very blurry."
-            
+        if read_percentage < 60:
+            warning_msg = f"Low text density detected ({extracted_chars} characters across {total_pages} pages). Some blurry sections may need review."
+        
         chunks = chunker.chunk(elements)
         if not chunks:
             raise HTTPException(status_code=400, detail="Could not generate any readable chunks from the document text.")
@@ -356,10 +352,14 @@ async def upload_document_version(
         # Trigger background processing for embeddings
         background_tasks.add_task(process_document_background, tenant_id, document_id, version_id, chunks)
         
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.exception("Ingestion pipeline failed for document version")
         raise HTTPException(status_code=500, detail=f"Ingestion pipeline failed: {str(e)}")
     finally:
-        os.remove(tmp_path)
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
     
     return {
         "status": "success",
