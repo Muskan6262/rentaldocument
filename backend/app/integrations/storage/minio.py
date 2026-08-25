@@ -20,9 +20,17 @@ class MinIOStorageProvider(ObjectStorageProvider):
     def _ensure_bucket_exists(self):
         try:
             self.client.head_bucket(Bucket=self.bucket)
-        except ClientError:
-            # Create bucket if it doesn't exist
-            self.client.create_bucket(Bucket=self.bucket)
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code")
+            if error_code in ("404", "NoSuchBucket"):
+                try:
+                    self.client.create_bucket(Bucket=self.bucket)
+                except Exception as create_err:
+                    print(f"Warning: Could not create S3 bucket '{self.bucket}': {create_err}")
+            else:
+                print(f"Warning: S3 bucket check returned: {e}")
+        except Exception as e:
+            print(f"Warning: Could not connect to S3/MinIO endpoint '{settings.S3_ENDPOINT_URL}': {e}")
 
     def upload(self, file_obj: BinaryIO, object_key: str, content_type: str = "application/pdf") -> str:
         self.client.upload_fileobj(

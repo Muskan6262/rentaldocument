@@ -16,42 +16,45 @@ class QdrantProvider(VectorDBProvider):
     def _ensure_collection_exists(self):
         try:
             self.client.get_collection(collection_name=self.collection_name)
-        except Exception:
-            # Collection doesn't exist, create it with named dense and sparse vectors
-            self.client.create_collection(
-                collection_name=self.collection_name,
-                vectors_config={
-                    "dense": models.VectorParams(size=self.dimensions, distance=models.Distance.COSINE)
-                },
-                sparse_vectors_config={
-                    "sparse": models.SparseVectorParams(
-                        index=models.SparseIndexParams(
-                            on_disk=False,
+        except Exception as e:
+            try:
+                # Collection doesn't exist, attempt to create it with named dense and sparse vectors
+                self.client.create_collection(
+                    collection_name=self.collection_name,
+                    vectors_config={
+                        "dense": models.VectorParams(size=self.dimensions, distance=models.Distance.COSINE)
+                    },
+                    sparse_vectors_config={
+                        "sparse": models.SparseVectorParams(
+                            index=models.SparseIndexParams(
+                                on_disk=False,
+                            )
                         )
-                    )
-                }
-            )
-            # Create payload index for tenant_id for mandatory filtering
-            self.client.create_payload_index(
-                collection_name=self.collection_name,
-                field_name="tenant_id",
-                field_schema=models.PayloadSchemaType.KEYWORD
-            )
-            self.client.create_payload_index(
-                collection_name=self.collection_name,
-                field_name="document_id",
-                field_schema=models.PayloadSchemaType.KEYWORD
-            )
-            self.client.create_payload_index(
-                collection_name=self.collection_name,
-                field_name="version_id",
-                field_schema=models.PayloadSchemaType.KEYWORD
-            )
-            self.client.create_payload_index(
-                collection_name=self.collection_name,
-                field_name="is_active",
-                field_schema=models.PayloadSchemaType.BOOL
-            )
+                    }
+                )
+                # Create payload index for tenant_id for mandatory filtering
+                self.client.create_payload_index(
+                    collection_name=self.collection_name,
+                    field_name="tenant_id",
+                    field_schema=models.PayloadSchemaType.KEYWORD
+                )
+                self.client.create_payload_index(
+                    collection_name=self.collection_name,
+                    field_name="document_id",
+                    field_schema=models.PayloadSchemaType.KEYWORD
+                )
+                self.client.create_payload_index(
+                    collection_name=self.collection_name,
+                    field_name="version_id",
+                    field_schema=models.PayloadSchemaType.KEYWORD
+                )
+                self.client.create_payload_index(
+                    collection_name=self.collection_name,
+                    field_name="is_active",
+                    field_schema=models.PayloadSchemaType.BOOL
+                )
+            except Exception as create_err:
+                print(f"Warning: Could not connect to or initialize Qdrant at '{settings.QDRANT_URL}': {create_err}")
 
     def deactivate_document_versions(self, tenant_id: str, document_id: str):
         """
