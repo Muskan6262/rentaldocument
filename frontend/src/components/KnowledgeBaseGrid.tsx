@@ -79,7 +79,13 @@ export default function KnowledgeBaseGrid({
       clearInterval(progressInterval);
       setUploadStep(5);
 
-      const data = await response.json();
+      let data: any = {};
+      try {
+        const text = await response.text();
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = { detail: response.statusText || `HTTP ${response.status}` };
+      }
 
       if (response.ok) {
         setUploadStatus('Document successfully ingested and indexed!');
@@ -90,12 +96,13 @@ export default function KnowledgeBaseGrid({
         }
         setTimeout(() => setUploadStatus(''), 4000);
       } else {
-        setUploadError(`Upload Error: ${data.detail || 'Failed to upload'}`);
+        const errorMsg = data.detail || (typeof data === 'string' ? data : `Upload failed with status ${response.status}`);
+        setUploadError(`Upload Error: ${errorMsg}`);
         setUploadStatus('');
       }
-    } catch (err) {
+    } catch (err: any) {
       clearInterval(progressInterval);
-      setUploadError('Network error during document ingestion.');
+      setUploadError(`Upload Error: ${err?.message || 'Network connection error or request timed out.'}`);
       setUploadStatus('');
     } finally {
       setIsUploading(false);
