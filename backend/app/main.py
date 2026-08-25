@@ -24,10 +24,30 @@ def on_startup():
 
 app.include_router(api_router, prefix="/api/v1")
 
-@app.get("/")
-def read_root():
-    return {"status": "ok", "message": "Rental Intelligence API is running"}
+import os
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
-@app.get("/health")
-def health_check():
-    return {"status": "healthy"}
+# Serve Frontend static build
+static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+
+if os.path.exists(static_dir):
+    assets_dir = os.path.join(static_dir, "assets")
+    if os.path.exists(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        if full_path in ("docs", "redoc", "openapi.json") or full_path.startswith("api/"):
+            return None
+        file_path = os.path.join(static_dir, full_path)
+        if full_path and os.path.exists(file_path) and os.path.isfile(file_path):
+            return FileResponse(file_path)
+        index_file = os.path.join(static_dir, "index.html")
+        if os.path.exists(index_file):
+            return FileResponse(index_file)
+        return {"status": "ok", "message": "Rental Intelligence API is running"}
+else:
+    @app.get("/")
+    def read_root():
+        return {"status": "ok", "message": "Rental Intelligence API is running"}
