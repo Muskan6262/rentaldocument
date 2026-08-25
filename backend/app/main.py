@@ -36,6 +36,13 @@ if os.path.exists(static_dir):
     if os.path.exists(assets_dir):
         app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
+    @app.get("/")
+    async def serve_root():
+        index_file = os.path.join(static_dir, "index.html")
+        if os.path.exists(index_file):
+            return FileResponse(index_file)
+        return {"status": "ok", "message": "Rental Intelligence API is running"}
+
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
         if full_path in ("docs", "redoc", "openapi.json") or full_path.startswith("api/"):
@@ -51,3 +58,4 @@ else:
     @app.get("/")
     def read_root():
         return {"status": "ok", "message": "Rental Intelligence API is running"}
+
