@@ -10,6 +10,8 @@ interface PdfViewerModalProps {
 
 export default function PdfViewerModal({
   isOpen,
+
+
   onClose,
   documentId,
   documentTitle,

@@ -26,8 +26,9 @@ class FastembedDenseProvider(EmbeddingProvider):
         return embeddings[0].tolist()
         
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        # batch_size=64 accelerates multi-clause vector embedding by 10x-20x
-        embeddings = list(self.model.embed(texts, batch_size=64))
+        import gc
+        embeddings = list(self.model.embed(texts, batch_size=16))
+        gc.collect()
         return [e.tolist() for e in embeddings]
 
 embedding_provider = FastembedDenseProvider()

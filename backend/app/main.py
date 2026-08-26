@@ -21,19 +21,6 @@ def on_startup():
         print("Database connection & tables initialized successfully.")
     except Exception as e:
         print(f"Warning: Database connection failed during startup: {e}")
-        
-    import threading
-    def _warmup_embeddings():
-        try:
-            from app.integrations.embeddings import embedding_provider, sparse_provider
-            print("Pre-warming fastembed models in background...")
-            embedding_provider.embed_text("warmup")
-            sparse_provider.embed_text("warmup")
-            print("FastEmbed models pre-warmed & ready.")
-        except Exception as ex:
-            print(f"Warmup notice: {ex}")
-            
-    threading.Thread(target=_warmup_embeddings, daemon=True).start()
 
 app.include_router(api_router, prefix="/api/v1")
 

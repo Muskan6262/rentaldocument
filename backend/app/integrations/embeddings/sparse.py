@@ -32,13 +32,15 @@ class SparseEmbeddingProvider:
         """
         Embeds a batch of strings into sparse vectors.
         """
-        sparse_gen = self.model.embed(texts, batch_size=64)
+        import gc
+        sparse_gen = self.model.embed(texts, batch_size=16)
         results = []
         for sparse_embedding in sparse_gen:
             results.append({
                 "indices": sparse_embedding.indices.tolist(),
                 "values": sparse_embedding.values.tolist()
             })
+        gc.collect()
         return results
 
 sparse_provider = SparseEmbeddingProvider()
