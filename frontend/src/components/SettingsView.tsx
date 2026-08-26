@@ -20,28 +20,10 @@ interface SettingsViewProps {
 
 const AVAILABLE_MODELS = [
   {
-    id: 'llama-3.3-70b-versatile',
-    name: 'Llama 3.3 70B Versatile',
-    badge: '128K Context • Recommended',
-    description: 'Latest flagship production model on Groq. Exceptional for multi-clause legal cross-referencing and zero-hallucination extraction.'
-  },
-  {
-    id: 'llama-3.1-8b-instant',
-    name: 'Llama 3.1 8B Instant',
-    badge: 'Ultra-Fast • Low Latency',
-    description: 'Blazing fast inference speed suited for quick clause lookups, definition checks, and instant Q&A.'
-  },
-  {
-    id: 'deepseek-r1-distill-llama-70b',
-    name: 'DeepSeek R1 Distill 70B',
-    badge: 'Deep Reasoning',
-    description: 'Advanced chain-of-thought reasoning model for complex contractual dispute analysis and liability assessment.'
-  },
-  {
     id: 'sarvam-105b',
     name: 'Sarvam 105B Indic Legal',
-    badge: 'Indic Legal Specialization',
-    description: 'Specialized for Indian tenancy contracts, state-specific stamp duty acts, and multi-lingual Hindi/English parsing.'
+    badge: 'Active Production LLM',
+    description: 'Specialized for Indian & global tenancy agreements, multi-clause legal grounding, state stamp acts, and zero-hallucination analysis.'
   }
 ];
 
@@ -89,9 +71,9 @@ export default function SettingsView({
       {/* Settings Header */}
       <div className="settings-header">
         <div>
-          <h2 className="settings-title">AI & RAG Pipeline Settings</h2>
+          <h2 className="settings-title">AI & RAG Pipeline Specifications</h2>
           <p className="settings-subtitle">
-            Configure LLM models, hybrid search retrieval, chunking policies, top-k reranking, and live temperature calibration.
+            Inspect the active reasoning engine, hybrid dense + sparse retrieval configuration, and live temperature calibration.
           </p>
         </div>
 
@@ -112,21 +94,20 @@ export default function SettingsView({
               <div className="heading-icon">🧠</div>
               <div>
                 <h3>Active Large Language Model</h3>
-                <p>Select the reasoning engine for agreement analysis and legal answer generation</p>
+                <p>Configured reasoning engine for legal clause comprehension and answering</p>
               </div>
             </div>
 
             <div className="model-options-list">
               {AVAILABLE_MODELS.map(m => {
-                const isSelected = settings.model === m.id;
                 return (
                   <div
                     key={m.id}
-                    className={`model-option-card ${isSelected ? 'selected' : ''}`}
+                    className={`model-option-card selected`}
                     onClick={() => handleModelChange(m.id)}
                   >
                     <div className="option-radio">
-                      <div className={`radio-circle ${isSelected ? 'checked' : ''}`}></div>
+                      <div className={`radio-circle checked`}></div>
                     </div>
                     <div className="option-content">
                       <div className="option-header-row">
@@ -205,147 +186,8 @@ export default function SettingsView({
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Right Column: RAG Pipeline, Chunking, Embedding & Security */}
-        <div className="settings-column">
-          {/* Section 3: Search & Retrieval Strategy */}
-          <div className="settings-card glass-panel">
-            <div className="card-heading">
-              <div className="heading-icon">🔍</div>
-              <div>
-                <h3>Search & Retrieval Mode</h3>
-                <p>Vector database index querying strategy</p>
-              </div>
-            </div>
-
-            <div className="search-mode-grid">
-              <div
-                className={`search-mode-card ${settings.searchMode === 'hybrid' ? 'selected' : ''}`}
-                onClick={() => handleSearchModeChange('hybrid')}
-              >
-                <div className="mode-badge-recommended">Recommended</div>
-                <h4>Hybrid (Dense + Sparse)</h4>
-                <p>Combines BGE semantic vector similarity with Qdrant BM25 lexical keyword matching via Reciprocal Rank Fusion.</p>
-              </div>
-
-              <div
-                className={`search-mode-card ${settings.searchMode === 'dense' ? 'selected' : ''}`}
-                onClick={() => handleSearchModeChange('dense')}
-              >
-                <h4>Dense Vector Only</h4>
-                <p>Embeds query via 384-dim dense representation. Best for conceptual understanding and semantic queries.</p>
-              </div>
-
-              <div
-                className={`search-mode-card ${settings.searchMode === 'sparse' ? 'selected' : ''}`}
-                onClick={() => handleSearchModeChange('sparse')}
-              >
-                <h4>Sparse Lexical (BM25)</h4>
-                <p>Exact keyword and term frequency matching. Best for specific clause numbers, names, and monetary values.</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Section 4: Chunking & Embeddings Specification */}
-          <div className="settings-card glass-panel">
-            <div className="card-heading">
-              <div className="heading-icon">⚙️</div>
-              <div>
-                <h3>Chunking & Embeddings Engine</h3>
-                <p>Active document processing specifications</p>
-              </div>
-            </div>
-
-            <div className="specs-table">
-              <div className="spec-row">
-                <span className="spec-label">Chunking Strategy</span>
-                <span className="spec-value highlight">Structure-Aware Hierarchical</span>
-              </div>
-              <div className="spec-desc-text">
-                Chunks adhere to rental agreement clause boundaries (Section, Title, Articles) rather than arbitrary fixed token cuts.
-              </div>
-
-              <div className="spec-row" style={{ marginTop: '0.75rem' }}>
-                <span className="spec-label">Dense Embedding Model</span>
-                <span className="spec-value">FastEmbed BAAI/bge-small-en-v1.5</span>
-              </div>
-
-              <div className="spec-row">
-                <span className="spec-label">Sparse Embedding Model</span>
-                <span className="spec-value">Qdrant Fast-Sparse BM25</span>
-              </div>
-
-              <div className="spec-row">
-                <span className="spec-label">Vector Database</span>
-                <span className="spec-value">Qdrant Cloud / Multi-Tenant</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Section 4.5: Theme & Appearance */}
-          <div className="settings-card glass-panel">
-            <div className="card-heading">
-              <div className="heading-icon">🎨</div>
-              <div>
-                <h3>UI Theme & Appearance</h3>
-                <p>Select your visual styling (warm non-white light palette or dark obsidian)</p>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              <div 
-                className={`search-mode-card ${theme === 'light' ? 'selected' : ''}`}
-                onClick={theme !== 'light' && onToggleTheme ? onToggleTheme : undefined}
-                style={{ cursor: 'pointer' }}
-              >
-                <h4>☀️ Light Theme (Warm Sand)</h4>
-                <p>Natural warm oat, linen & slate tones without stark white eye fatigue.</p>
-              </div>
-
-              <div 
-                className={`search-mode-card ${theme === 'dark' ? 'selected' : ''}`}
-                onClick={theme !== 'dark' && onToggleTheme ? onToggleTheme : undefined}
-                style={{ cursor: 'pointer' }}
-              >
-                <h4>🌙 Dark Theme</h4>
-                <p>Deep obsidian navy for nighttime or low-light environments.</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Section 5: Top-K Reranking Slider */}
-          <div className="settings-card glass-panel">
-            <div className="card-heading">
-              <div className="heading-icon">🏆</div>
-              <div>
-                <h3>Top-K Reranking Candidates</h3>
-                <p>Number of reranked snippets fed into LLM context window</p>
-              </div>
-            </div>
-
-            <div className="topk-control-box">
-              <div className="topk-slider-row">
-                <input
-                  type="range"
-                  min="1"
-                  max="15"
-                  step="1"
-                  value={settings.topK}
-                  onChange={(e) => handleTopKChange(parseInt(e.target.value))}
-                  className="temp-range-slider"
-                />
-                <span className="topk-value-pill">{settings.topK} chunks</span>
-              </div>
-              <div className="slider-labels">
-                <span>1 Chunk (Focused)</span>
-                <span>5 Chunks (Optimal)</span>
-                <span>15 Chunks (Deep)</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Section 6: Security & Quota Dashboard */}
+          {/* Section 3: Security & Tenant Quota Dashboard (Moved below Temperature) */}
           <div className="settings-card glass-panel">
             <div className="card-heading">
               <div className="heading-icon">🛡️</div>
@@ -387,6 +229,129 @@ export default function SettingsView({
                 </div>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Right Column: RAG Pipeline, Chunking, Embedding & Appearance */}
+        <div className="settings-column">
+          {/* Section 4: Search & Retrieval Strategy */}
+          <div className="settings-card glass-panel">
+            <div className="card-heading">
+              <div className="heading-icon">🔍</div>
+              <div>
+                <h3>Search & Retrieval Strategy</h3>
+                <p>Vector database index querying & ranking architecture</p>
+              </div>
+            </div>
+
+            <div className="search-mode-grid">
+              <div
+                className={`search-mode-card selected`}
+                onClick={() => handleSearchModeChange('hybrid')}
+              >
+                <div className="mode-badge-recommended">Active Production Strategy</div>
+                <h4>Hybrid (Dense Vector + Sparse Lexical BM25)</h4>
+                <p>Combines BGE dense semantic vector similarity with Qdrant BM25 keyword matching via Reciprocal Rank Fusion (RRF) and Cohere Reranking.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 5: Chunking & Embeddings Specification */}
+          <div className="settings-card glass-panel">
+            <div className="card-heading">
+              <div className="heading-icon">⚙️</div>
+              <div>
+                <h3>Chunking & Embeddings Engine</h3>
+                <p>Active document processing specifications</p>
+              </div>
+            </div>
+
+            <div className="specs-table">
+              <div className="spec-row">
+                <span className="spec-label">Chunking Strategy</span>
+                <span className="spec-value highlight">Structure-Aware Hierarchical</span>
+              </div>
+              <div className="spec-desc-text">
+                Chunks adhere to rental agreement clause boundaries (Section, Title, Articles) rather than arbitrary fixed token cuts.
+              </div>
+
+              <div className="spec-row" style={{ marginTop: '0.75rem' }}>
+                <span className="spec-label">Dense Embedding Model</span>
+                <span className="spec-value">FastEmbed BAAI/bge-small-en-v1.5</span>
+              </div>
+
+              <div className="spec-row">
+                <span className="spec-label">Sparse Embedding Model</span>
+                <span className="spec-value">Qdrant Fast-Sparse BM25</span>
+              </div>
+
+              <div className="spec-row">
+                <span className="spec-label">Vector Database</span>
+                <span className="spec-value">Qdrant Cloud / Multi-Tenant</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 6: Top-K Reranking Slider */}
+          <div className="settings-card glass-panel">
+            <div className="card-heading">
+              <div className="heading-icon">🏆</div>
+              <div>
+                <h3>Top-K Reranking Candidates</h3>
+                <p>Number of reranked snippets fed into LLM context window</p>
+              </div>
+            </div>
+
+            <div className="topk-control-box">
+              <div className="topk-slider-row">
+                <input
+                  type="range"
+                  min="1"
+                  max="15"
+                  step="1"
+                  value={settings.topK}
+                  onChange={(e) => handleTopKChange(parseInt(e.target.value))}
+                  className="temp-range-slider"
+                />
+                <span className="topk-value-pill">{settings.topK} chunks</span>
+              </div>
+              <div className="slider-labels">
+                <span>1 Chunk (Focused)</span>
+                <span>5 Chunks (Optimal)</span>
+                <span>15 Chunks (Deep)</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 7: Theme & Appearance */}
+          <div className="settings-card glass-panel">
+            <div className="card-heading">
+              <div className="heading-icon">🎨</div>
+              <div>
+                <h3>UI Theme & Appearance</h3>
+                <p>Select your visual styling (warm non-white light palette or dark obsidian)</p>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div 
+                className={`search-mode-card ${theme === 'light' ? 'selected' : ''}`}
+                onClick={theme !== 'light' && onToggleTheme ? onToggleTheme : undefined}
+                style={{ cursor: 'pointer' }}
+              >
+                <h4>☀️ Light Theme (Warm Sand)</h4>
+                <p>Natural warm oat, linen & slate tones without stark white eye fatigue.</p>
+              </div>
+
+              <div 
+                className={`search-mode-card ${theme === 'dark' ? 'selected' : ''}`}
+                onClick={theme !== 'dark' && onToggleTheme ? onToggleTheme : undefined}
+                style={{ cursor: 'pointer' }}
+              >
+                <h4>🌙 Dark Theme</h4>
+                <p>Deep obsidian navy for nighttime or low-light environments.</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

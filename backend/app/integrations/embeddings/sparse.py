@@ -12,7 +12,8 @@ class SparseEmbeddingProvider:
             with self._lock:
                 if self._model is None:
                     from fastembed.sparse.sparse_text_embedding import SparseTextEmbedding
-                    self._model = SparseTextEmbedding(model_name="Qdrant/bm25", threads=1)
+                    # threads=None enables multi-threaded BM25 token hashing
+                    self._model = SparseTextEmbedding(model_name="Qdrant/bm25", threads=None)
         return self._model
 
     def embed_text(self, text: str) -> Dict[str, Any]:
@@ -31,7 +32,7 @@ class SparseEmbeddingProvider:
         """
         Embeds a batch of strings into sparse vectors.
         """
-        sparse_gen = self.model.embed(texts, batch_size=4)
+        sparse_gen = self.model.embed(texts, batch_size=64)
         results = []
         for sparse_embedding in sparse_gen:
             results.append({

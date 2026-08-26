@@ -101,14 +101,38 @@ function App() {
   const [isDocumentIndexing, setIsDocumentIndexing] = useState(false);
 
   // Settings State
-  const [ragSettings, setRagSettings] = useState<RAGSettings>({
-    model: 'llama-3.3-70b-versatile',
-    searchMode: 'hybrid',
-    chunkingStrategy: 'Structure-Aware Hierarchical Clause Chunking',
-    embeddingModel: 'FastEmbed BAAI/bge-small-en-v1.5 + Sparse BM25',
-    topK: 5,
-    temperature: 0.0
+  const [ragSettings, setRagSettings] = useState<RAGSettings>(() => {
+    const saved = localStorage.getItem('rental_rag_settings');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.model === 'sarvam-2b') parsed.model = 'sarvam-105b';
+        return parsed;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return {
+      model: 'sarvam-105b',
+      searchMode: 'hybrid',
+      chunkingStrategy: 'Structure-Aware Hierarchical Clause Chunking',
+      embeddingModel: 'FastEmbed BAAI/bge-small-en-v1.5 + Sparse BM25',
+      topK: 5,
+      temperature: 0.0
+    };
   });
+
+  const handleUpdateRagSettings = (newSettings: Partial<RAGSettings>) => {
+    setRagSettings(prev => {
+      const updated = { ...prev, ...newSettings };
+      try {
+        localStorage.setItem('rental_rag_settings', JSON.stringify(updated));
+      } catch (e) {
+        console.error(e);
+      }
+      return updated;
+    });
+  };
 
   const [tokenUsage, setTokenUsage] = useState<{ token_quota: number; tokens_used: number } | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -590,7 +614,11 @@ function App() {
             <div className="chat-top-actions">
               <div className="chat-config-pill" onClick={() => setActiveTab('settings')} title="View / change RAG settings">
                 <span className="config-dot"></span>
-                <span>{ragSettings.model.split('-')[0].toUpperCase()}</span>
+                <span>
+                  {ragSettings.model === 'sarvam-105b'
+                    ? 'SARVAM 105B'
+                    : ragSettings.model.split('-')[0].toUpperCase()}
+                </span>
                 <span className="config-temp">T:{ragSettings.temperature.toFixed(1)}</span>
               </div>
 
@@ -778,7 +806,7 @@ function App() {
       {activeTab === 'settings' && (
         <SettingsView
           settings={ragSettings}
-          onUpdateSettings={(newSettings) => setRagSettings(prev => ({ ...prev, ...newSettings }))}
+          onUpdateSettings={handleUpdateRagSettings}
           tokenUsage={tokenUsage}
           userEmail={userEmail}
           theme={theme}
