@@ -23,12 +23,16 @@ router = APIRouter()
 def process_document_background(tenant_id: str, document_id: str, version_id: str, chunks: List[dict]):
     db = SessionLocal()
     try:
+        print(f"--> [Background Indexing] Starting for doc={document_id}, version={version_id}, chunks={len(chunks)}")
         # Mask PII in all chunks before generating embeddings and saving to Qdrant
         for chunk in chunks:
             chunk["text"] = pii_masker.mask_text(chunk.get("text", ""))
             
         texts_to_embed = [chunk["text"] for chunk in chunks]
+        print(f"--> [Background Indexing] Generating Dense Embeddings for {len(texts_to_embed)} chunks...")
         dense_embeddings = embedding_provider.embed_documents(texts_to_embed)
+        
+        print(f"--> [Background Indexing] Generating Sparse BM25 Embeddings for {len(texts_to_embed)} chunks...")
         sparse_embeddings = sparse_provider.embed_batch(texts_to_embed)
         
         for i, chunk in enumerate(chunks):
@@ -36,6 +40,7 @@ def process_document_background(tenant_id: str, document_id: str, version_id: st
             chunk["sparse_vector"] = sparse_embeddings[i]
             
         if chunks:
+            print(f"--> [Background Indexing] Upserting {len(chunks)} vectors to Qdrant...")
             vector_db_provider.upsert(
                 tenant_id=tenant_id,
                 document_id=document_id,
@@ -47,12 +52,16 @@ def process_document_background(tenant_id: str, document_id: str, version_id: st
         if db_version:
             db_version.processing_status = "READY"
             db.commit()
+            print(f"--> [Background Indexing] Document {document_id} marked as READY successfully!")
     except Exception as e:
-        print(f"Background processing failed: {e}")
-        db_version = db.query(DocumentVersion).filter_by(id=version_id).first()
-        if db_version:
-            db_version.processing_status = "FAILED"
-            db.commit()
+        print(f"--> [Background Indexing] Processing failed: {e}")
+        try:
+            db_version = db.query(DocumentVersion).filter_by(id=version_id).first()
+            if db_version:
+                db_version.processing_status = "FAILED"
+                db.commit()
+        except Exception as db_err:
+            print(f"--> [Background Indexing] Could not update status to FAILED: {db_err}")
     finally:
         db.close()
 

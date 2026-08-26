@@ -12,8 +12,8 @@ class SparseEmbeddingProvider:
             with self._lock:
                 if self._model is None:
                     from fastembed.sparse.sparse_text_embedding import SparseTextEmbedding
-                    # threads=None enables multi-threaded BM25 token hashing
-                    self._model = SparseTextEmbedding(model_name="Qdrant/bm25", threads=None)
+                    # threads=1 ensures safe memory usage on cloud instances
+                    self._model = SparseTextEmbedding(model_name="Qdrant/bm25", threads=1)
         return self._model
 
     def embed_text(self, text: str) -> Dict[str, Any]:

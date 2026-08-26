@@ -17,8 +17,8 @@ class FastembedDenseProvider(EmbeddingProvider):
                     model_name = settings.EMBEDDING_MODEL
                     if not model_name or "text-embedding" in model_name:
                         model_name = "BAAI/bge-small-en-v1.5"
-                    # threads=None allows ONNX runtime to utilize all CPU cores for ultra-fast vectorization
-                    self._model = TextEmbedding(model_name=model_name, threads=None)
+                    # threads=1 ensures safe memory usage on cloud instances without OOM spikes
+                    self._model = TextEmbedding(model_name=model_name, threads=1)
         return self._model
 
     def embed_text(self, text: str) -> List[float]:

@@ -1,3 +1,4 @@
+import os
 import uuid
 from typing import List, Dict, Any
 from qdrant_client import QdrantClient
@@ -8,10 +9,38 @@ from app.integrations.vector_db.base import VectorDBProvider
 
 class QdrantProvider(VectorDBProvider):
     def __init__(self):
-        self.client = QdrantClient(url=settings.QDRANT_URL, api_key=settings.QDRANT_API_KEY)
         self.collection_name = settings.QDRANT_COLLECTION + "_hybrid" # Use new name to avoid conflicts
         self.dimensions = settings.EMBEDDING_DIMENSIONS
+        self.client = self._init_client()
         self._ensure_collection_exists()
+
+    def _init_client(self) -> QdrantClient:
+        url = (settings.QDRANT_URL or "").strip()
+        api_key = (settings.QDRANT_API_KEY or "").strip() or None
+        
+        is_placeholder = (
+            not url 
+            or "your-cluster" in url.lower() 
+            or "your_qdrant" in str(api_key).lower()
+            or url == "local" 
+            or url == ":memory:"
+        )
+        
+        if not is_placeholder:
+            try:
+                # Test connectivity with 5s timeout
+                client = QdrantClient(url=url, api_key=api_key, timeout=5)
+                client.get_collections()
+                print(f"Connected successfully to remote Qdrant at: {url}")
+                return client
+            except Exception as conn_err:
+                print(f"Warning: Could not connect to remote Qdrant at '{url}' ({conn_err}). Falling back to embedded local storage.")
+        
+        # Fallback to embedded local Qdrant on disk
+        storage_path = os.path.join(settings.STORAGE_LOCAL_DIR, "qdrant_db")
+        os.makedirs(storage_path, exist_ok=True)
+        print(f"Initialized Embedded Local Qdrant at: {storage_path}")
+        return QdrantClient(path=storage_path)
 
     def _ensure_collection_exists(self):
         try:
