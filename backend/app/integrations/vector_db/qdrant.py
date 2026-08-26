@@ -15,10 +15,21 @@ class QdrantProvider(VectorDBProvider):
 
     def _ensure_collection_exists(self):
         try:
-            self.client.get_collection(collection_name=self.collection_name)
-        except Exception as e:
+            col = self.client.get_collection(collection_name=self.collection_name)
+            # Verify dense vector size matches configuration
+            existing_dense_size = None
+            if hasattr(col.config.params, "vectors") and isinstance(col.config.params.vectors, dict):
+                dense_param = col.config.params.vectors.get("dense")
+                if dense_param and hasattr(dense_param, "size"):
+                    existing_dense_size = dense_param.size
+            
+            if existing_dense_size and existing_dense_size != self.dimensions:
+                print(f"Recreating Qdrant collection '{self.collection_name}' to match new vector dimension {self.dimensions} (was {existing_dense_size})")
+                self.client.delete_collection(collection_name=self.collection_name)
+                raise Exception("Collection dimension mismatch, triggering recreation")
+        except Exception:
             try:
-                # Collection doesn't exist, attempt to create it with named dense and sparse vectors
+                # Collection doesn't exist or dimension mismatched, create with named dense and sparse vectors
                 self.client.create_collection(
                     collection_name=self.collection_name,
                     vectors_config={
@@ -74,22 +85,47 @@ class QdrantProvider(VectorDBProvider):
         except Exception as e:
             print(f"Warning: Could not deactivate document versions in Qdrant: {e}")
 
+    def delete_document(self, tenant_id: str, document_id: str):
+        """
+        Deletes all chunks for a document belonging to the tenant from Qdrant.
+        """
+        try:
+            self.client.delete(
+                collection_name=self.collection_name,
+                points_selector=models.Filter(
+                    must=[
+                        models.FieldCondition(key="tenant_id", match=models.MatchValue(value=tenant_id)),
+                        models.FieldCondition(key="document_id", match=models.MatchValue(value=document_id))
+                    ]
+                )
+            )
+        except Exception as e:
+            print(f"Warning: Could not delete document points from Qdrant: {e}")
+
     def upsert(self, tenant_id: str, document_id: str, version_id: str, chunks: List[Dict[str, Any]]) -> bool:
+        if not chunks:
+            return True
+
+        # Ensure collection matches vector dimensions of the chunks
+        sample_dense = chunks[0].get("vector")
+        if sample_dense and len(sample_dense) != self.dimensions:
+            self.dimensions = len(sample_dense)
+            self._ensure_collection_exists()
+
         points = []
         for chunk in chunks:
             # Ensure mandatory metadata is attached
-            payload = chunk.get("payload", {})
+            payload = chunk.get("payload", {}).copy()
             payload.update({
                 "tenant_id": tenant_id,
                 "document_id": document_id,
                 "version_id": version_id,
-                "is_active": True, # Default to true when freshly upserted
+                "is_active": True,
                 "text": chunk.get("text", "")
             })
             
-            # Extract dense and sparse vectors
             dense_vector = chunk["vector"]
-            sparse_vector_data = chunk["sparse_vector"]
+            sparse_vector_data = chunk.get("sparse_vector", {"indices": [], "values": []})
             
             points.append(
                 models.PointStruct(
@@ -105,19 +141,21 @@ class QdrantProvider(VectorDBProvider):
                 )
             )
             
-        if points:
+        # Batch upsert to avoid large payload errors
+        batch_size = 50
+        for i in range(0, len(points), batch_size):
+            batch = points[i:i + batch_size]
             try:
                 self.client.upsert(
                     collection_name=self.collection_name,
-                    points=points
+                    points=batch
                 )
             except Exception as e:
-                print(f"Error during Qdrant upsert: {e}")
+                print(f"Error during Qdrant upsert batch {i//batch_size}: {e}")
                 raise e
         return True
 
-
-    def search(self, tenant_id: str, query_vector: List[float], limit: int = 10, filters: Dict[str, Any] = None, sparse_query_vector: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+    def search(self, tenant_id: str, query_vector: List[float] = None, limit: int = 10, filters: Dict[str, Any] = None, sparse_query_vector: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         if filters is None:
             filters = {}
             
@@ -144,16 +182,18 @@ class QdrantProvider(VectorDBProvider):
             
         filter_obj = models.Filter(must=must_conditions)
         
-        # HYBRID SEARCH via Query API with Reciprocal Rank Fusion
-        prefetch = [
-            models.Prefetch(
-                query=query_vector,
-                using="dense",
-                limit=limit * 2,
+        # Build prefetch safely
+        prefetch = []
+        if query_vector is not None and len(query_vector) > 0:
+            prefetch.append(
+                models.Prefetch(
+                    query=query_vector,
+                    using="dense",
+                    limit=limit * 2,
+                )
             )
-        ]
         
-        if sparse_query_vector:
+        if sparse_query_vector is not None and sparse_query_vector.get("indices"):
             prefetch.append(
                 models.Prefetch(
                     query=models.SparseVector(
@@ -165,6 +205,9 @@ class QdrantProvider(VectorDBProvider):
                 )
             )
             
+        if not prefetch:
+            return []
+
         # Execute Query API (Fusion)
         try:
             results = self.client.query_points(

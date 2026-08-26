@@ -403,6 +403,94 @@ def get_document_versions(
         ]
     }
 
+@router.delete("/{document_id}")
+def delete_document(
+    document_id: str,
+    tenant_id: str = Depends(get_current_tenant_id),
+    db: Session = Depends(get_db)
+):
+    db_document = db.query(Document).filter(Document.id == document_id, Document.tenant_id == tenant_id).first()
+    if not db_document:
+        raise HTTPException(status_code=404, detail="Document not found")
+        
+    # Delete from Qdrant
+    try:
+        vector_db_provider.delete_document(tenant_id, document_id)
+    except Exception as e:
+        print(f"Warning: Failed to delete document from Qdrant: {e}")
+
+    # Delete versions and storage files
+    versions = db.query(DocumentVersion).filter(DocumentVersion.document_id == document_id).all()
+    for v in versions:
+        try:
+            storage_provider.delete(v.file_path)
+        except Exception as e:
+            print(f"Warning: Failed to delete file {v.file_path} from storage: {e}")
+        db.delete(v)
+
+    db.delete(db_document)
+    db.commit()
+    
+    return {"status": "success", "message": "Document deleted successfully"}
+
+@router.post("/{document_id}/reindex")
+def reindex_document(
+    document_id: str,
+    background_tasks: BackgroundTasks,
+    tenant_id: str = Depends(get_current_tenant_id),
+    db: Session = Depends(get_db)
+):
+    db_document = db.query(Document).filter(Document.id == document_id, Document.tenant_id == tenant_id).first()
+    if not db_document:
+        raise HTTPException(status_code=404, detail="Document not found")
+        
+    active_version = db.query(DocumentVersion).filter(
+        DocumentVersion.document_id == document_id,
+        DocumentVersion.is_active == True
+    ).first()
+    
+    if not active_version:
+        # If no active version, pick the latest version and make it active
+        active_version = db.query(DocumentVersion).filter(
+            DocumentVersion.document_id == document_id
+        ).order_by(DocumentVersion.version_number.desc()).first()
+        if active_version:
+            active_version.is_active = True
+            
+    if not active_version:
+        raise HTTPException(status_code=404, detail="No document version found to reindex")
+
+    try:
+        content = storage_provider.download(active_version.file_path)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"File not found in storage: {e}")
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
+
+    try:
+        elements = document_parser.parse(tmp_path)
+        chunks = chunker.chunk(elements)
+        if not chunks:
+            raise HTTPException(status_code=400, detail="Could not extract readable chunks from document")
+
+        active_version.processing_status = "INDEXING"
+        db.commit()
+
+        background_tasks.add_task(process_document_background, tenant_id, document_id, active_version.id, chunks)
+
+        return {
+            "status": "success",
+            "message": "Reindexing started in the background",
+            "document_id": document_id,
+            "version_id": active_version.id,
+            "chunks_count": len(chunks)
+        }
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
 @router.get("/{document_id}/download")
 def download_document(
     document_id: str,
@@ -429,5 +517,3 @@ def download_document(
             status_code=404, 
             detail=f"Document file '{active_version.file_path}' was not found in storage. Please re-upload this agreement."
         )
-
-

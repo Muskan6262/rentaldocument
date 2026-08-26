@@ -38,8 +38,8 @@ const AVAILABLE_MODELS = [
     description: 'Advanced chain-of-thought reasoning model for complex contractual dispute analysis and liability assessment.'
   },
   {
-    id: 'sarvam-2b',
-    name: 'Sarvam Indic Model',
+    id: 'sarvam-105b',
+    name: 'Sarvam 105B Indic Legal',
     badge: 'Indic Legal Specialization',
     description: 'Specialized for Indian tenancy contracts, state-specific stamp duty acts, and multi-lingual Hindi/English parsing.'
   }

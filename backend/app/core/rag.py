@@ -16,7 +16,7 @@ class RAGService:
                 base_url="https://api.sarvam.ai/v1",
                 api_key=settings.OPENAI_API_KEY
             )
-            self.model = "sarvam-2b"
+            self.model = "sarvam-105b"
         else:
             self.client = openai.OpenAI(
                 base_url="https://api.groq.com/openai/v1",
@@ -87,31 +87,69 @@ class RAGService:
             "4. Cite the snippets you use by referencing their number (e.g., 'According to Snippet [1]...').\n"
         )
         
-        selected_model = model or self.model
+        user_prompt = (
+            f"Retrieved Agreement Context:\n\n"
+            f"{context_string}\n\n"
+            f"User Question: {question}\n\n"
+            f"Please answer the question accurately using the snippets above. If the context does not contain the answer, state that the information was not found in the uploaded agreement."
+        )
+        
+        requested_model = model or self.model
         clamped_temp = max(0.0, min(1.0, float(temperature)))
         
-        # Dynamic client selection based on chosen active model
-        if selected_model.startswith("sarvam") and settings.OPENAI_API_KEY:
-            active_client = openai.OpenAI(
-                base_url="https://api.sarvam.ai/v1",
-                api_key=settings.OPENAI_API_KEY
-            )
-        elif (selected_model.startswith("llama") or selected_model.startswith("deepseek") or selected_model.startswith("mixtral") or selected_model.startswith("gemma")) and settings.GROQ_API_KEY:
+        # Dynamic client and model selection
+        if settings.GROQ_API_KEY and (requested_model.startswith("llama") or requested_model.startswith("deepseek") or requested_model.startswith("mixtral") or requested_model.startswith("gemma")):
             active_client = openai.OpenAI(
                 base_url="https://api.groq.com/openai/v1",
                 api_key=settings.GROQ_API_KEY
             )
+            selected_model = requested_model
+        elif settings.OPENAI_API_KEY:
+            active_client = openai.OpenAI(
+                base_url="https://api.sarvam.ai/v1",
+                api_key=settings.OPENAI_API_KEY
+            )
+            # Sarvam supports sarvam-105b or sarvam-105b-conversations
+            if requested_model.startswith("sarvam"):
+                selected_model = "sarvam-105b"
+            else:
+                # If Groq is not configured, gracefully route to Sarvam 105B
+                selected_model = "sarvam-105b"
         else:
             active_client = self.client
+            selected_model = self.model
 
-        response = active_client.chat.completions.create(
-            model=selected_model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=clamped_temp
-        )
+        try:
+            response = active_client.chat.completions.create(
+                model=selected_model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=clamped_temp
+            )
+            answer = response.choices[0].message.content
+            tokens_used = response.usage.total_tokens if hasattr(response, "usage") and response.usage else 0
+        except Exception as api_err:
+            print(f"Primary LLM completion error with model {selected_model}: {api_err}")
+            # Fallback to Sarvam 105B if other model failed
+            if settings.OPENAI_API_KEY and selected_model != "sarvam-105b":
+                try:
+                    fallback_client = openai.OpenAI(base_url="https://api.sarvam.ai/v1", api_key=settings.OPENAI_API_KEY)
+                    response = fallback_client.chat.completions.create(
+                        model="sarvam-105b",
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt}
+                        ],
+                        temperature=clamped_temp
+                    )
+                    answer = response.choices[0].message.content
+                    tokens_used = response.usage.total_tokens if hasattr(response, "usage") and response.usage else 0
+                except Exception as fb_err:
+                    raise Exception(f"Chat generation failed: {fb_err}")
+            else:
+                raise Exception(f"Chat generation failed: {api_err}")
         
         answer = response.choices[0].message.content
         if not answer:

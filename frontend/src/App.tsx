@@ -183,6 +183,18 @@ function App() {
     }
   }, [isAuthenticated, authToken]);
 
+  // Periodic polling when any document is in 'INDEXING' status
+  useEffect(() => {
+    const hasIndexingDocs = documents.some(d => d.status === 'INDEXING');
+    if (!hasIndexingDocs || !isAuthenticated || !authToken) return;
+
+    const intervalId = setInterval(() => {
+      fetchDocuments();
+    }, 2500);
+
+    return () => clearInterval(intervalId);
+  }, [documents, isAuthenticated, authToken]);
+
   const handleAuthSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setAuthError('');
@@ -550,9 +562,27 @@ function App() {
                 <div className="doc-title-row">
                   <h3>{selectedDocument ? selectedDocument.title : 'No Agreement Selected'}</h3>
                   {selectedDocument && <span className="doc-ver-tag">v{selectedDocument.active_version || 1}.0</span>}
+                  {selectedDocument && (
+                    <span className={`status-pill ${selectedDocument.status.toLowerCase()}`} style={{ marginLeft: 8 }}>
+                      <span className="status-dot"></span>
+                      {selectedDocument.status}
+                    </span>
+                  )}
                 </div>
                 <span className="doc-sub-text">
-                  {selectedDocument ? 'Active context for grounded questions' : 'Go to Knowledge Base or select an agreement'}
+                  {selectedDocument?.status === 'INDEXING' ? (
+                    <span style={{ color: '#f59e0b', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      ⏳ Document is indexing in background... vectors are being generated.
+                    </span>
+                  ) : selectedDocument?.status === 'FAILED' ? (
+                    <span style={{ color: '#ef4444' }}>
+                      ⚠️ Indexing failed. Go to Knowledge Base and click Retry.
+                    </span>
+                  ) : selectedDocument ? (
+                    'Active context for grounded questions'
+                  ) : (
+                    'Go to Knowledge Base or select an agreement'
+                  )}
                 </span>
               </div>
             </div>
@@ -707,18 +737,20 @@ function App() {
               placeholder={
                 !selectedDocId
                   ? "Select an agreement from Knowledge Base to start asking..."
-                  : isDocumentIndexing
-                    ? "Document is indexing in background..."
-                    : "Ask any question about clauses, notice period, security deposit, rent escalation..."
+                  : selectedDocument?.status === 'INDEXING'
+                    ? "Document is currently indexing in background... please wait a moment."
+                    : selectedDocument?.status === 'FAILED'
+                      ? "Document indexing failed. Please retry in Knowledge Base."
+                      : "Ask any question about clauses, notice period, security deposit, rent escalation..."
               }
               value={inputMessage}
               onChange={e => setInputMessage(e.target.value)}
-              disabled={!selectedDocId || isQuerying || isDocumentIndexing}
+              disabled={!selectedDocId || isQuerying || selectedDocument?.status === 'INDEXING' || selectedDocument?.status === 'FAILED'}
             />
             <button
               type="submit"
               className="chat-send-btn"
-              disabled={!selectedDocId || isQuerying || isDocumentIndexing || !inputMessage.trim()}
+              disabled={!selectedDocId || isQuerying || selectedDocument?.status === 'INDEXING' || selectedDocument?.status === 'FAILED' || !inputMessage.trim()}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
               <span>Send</span>

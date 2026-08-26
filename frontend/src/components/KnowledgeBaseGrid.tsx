@@ -129,6 +129,46 @@ export default function KnowledgeBaseGrid({
     }
   };
 
+  const handleDeleteDoc = async (docId: string, title: string) => {
+    if (!window.confirm(`Are you sure you want to delete "${title}"?`)) return;
+    try {
+      const res = await fetch(`/api/v1/documents/${docId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+      if (res.ok) {
+        onRefreshDocuments();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(`Delete failed: ${err.detail || 'Unknown error'}`);
+      }
+    } catch (e: any) {
+      alert(`Delete failed: ${e.message}`);
+    }
+  };
+
+  const handleReindexDoc = async (docId: string) => {
+    setUploadStatus('Re-indexing document in background...');
+    try {
+      const res = await fetch(`/api/v1/documents/${docId}/reindex`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+      if (res.ok) {
+        setUploadStatus('Reindexing started. Embeddings are generating...');
+        onRefreshDocuments();
+        setTimeout(() => setUploadStatus(''), 4000);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setUploadError(`Reindex failed: ${err.detail || 'Unknown error'}`);
+        setUploadStatus('');
+      }
+    } catch (e: any) {
+      setUploadError(`Reindex failed: ${e.message}`);
+      setUploadStatus('');
+    }
+  };
+
   return (
     <div className="knowledge-base-container">
       {/* Knowledge Base Header */}
@@ -249,6 +289,7 @@ export default function KnowledgeBaseGrid({
           {filteredDocs.map((doc, idx) => {
             const isSelected = selectedDocId === doc.id;
             const isLatest = idx === 0;
+            const isFailed = doc.status === 'FAILED';
 
             return (
               <div 
@@ -309,6 +350,27 @@ export default function KnowledgeBaseGrid({
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                     <span>View</span>
+                  </button>
+
+                  {isFailed && (
+                    <button
+                      className="card-view-btn"
+                      style={{ color: '#f59e0b', borderColor: 'rgba(245,158,11,0.3)' }}
+                      onClick={() => handleReindexDoc(doc.id)}
+                      title="Retry indexing"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                      <span>Retry</span>
+                    </button>
+                  )}
+
+                  <button
+                    className="card-view-btn"
+                    style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)' }}
+                    onClick={() => handleDeleteDoc(doc.id, doc.title)}
+                    title="Delete document"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                   </button>
                 </div>
               </div>
